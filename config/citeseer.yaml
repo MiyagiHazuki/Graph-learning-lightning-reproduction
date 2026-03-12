@@ -1,0 +1,37 @@
+# Citeseer Configuration for ProGNN (Simplified)
+# Optimized for ProGNN execution only
+
+# 基础运行参数
+basic:
+  seed: 10
+  debug: false
+  no_cuda: false
+
+# 数据与攻击配置
+data:
+  dataset: citeseer
+  attack: meta
+  ptb_rate: 0.15
+
+# 模型骨干网络 (GCN) 参数
+model:
+  hidden: 16
+  dropout: 0.5
+
+# 训练超参数
+training:
+  lr: 5e-4
+  weight_decay: 5e-4
+  epochs: 1000
+
+# ProGNN 核心算法参数
+prognn:
+  alpha: 5e-4            # L1 constraint weight
+  beta: 1.5              # Nuclear norm weight
+  gamma: 1               # L2 constraint weight
+  lambda_: 0.0001        # Feature smoothing weight
+  phi: 0                 # Symmetry loss weight
+  inner_steps: 2
+  outer_steps: 1
+  lr_adj: 0.01
+  symmetric: false
