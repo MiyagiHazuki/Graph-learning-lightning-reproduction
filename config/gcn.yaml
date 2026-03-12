@@ -1,0 +1,38 @@
+# GCN Configuration for ProGNN (Simplified)
+# Optimized for GCN execution only
+
+# 基础运行参数
+basic:
+  seed: 15
+  debug: false
+  no_cuda: false
+  only_gcn: true
+
+# 数据与攻击配置
+data:
+  dataset: pubmed
+  attack: meta
+  ptb_rate: 0.15
+
+# 模型骨干网络 (GCN) 参数
+model:
+  hidden: 16
+  dropout: 0.5
+
+# 训练超参数
+training:
+  lr: 0.01
+  weight_decay: 5e-4
+  epochs: 200
+
+# ProGNN 核心算法参数
+prognn:
+  alpha: 5e-4
+  beta: 1.5
+  gamma: 1
+  lambda_: 0
+  phi: 0
+  inner_steps: 2
+  outer_steps: 1
+  lr_adj: 0.01
+  symmetric: false

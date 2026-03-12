@@ -71,7 +71,7 @@ class EstimateAdj(nn.Module):
     def __init__(self, adj, symmetric=False, device='cpu'):
         super(EstimateAdj, self).__init__()
         n = len(adj)
-        self.estimated_adj = nn.Parameter(torch.FloatTensor(n, n))
+        self.estimated_adj = nn.Parameter(torch.FloatTensor(n, n).to(device))
         self._init_estimation(adj)
         self.symmetric = symmetric
         self.device = device
@@ -124,7 +124,7 @@ class ProGNNLearner(nn.Module):
                         lr=args.lr_adj, alphas=[args.alpha])
 
         self.optimizer_nuclear = PGD(self.estimator.parameters(),
-                  proxs=[prox_operators.prox_nuclear],
+                  proxs=[prox_operators.prox_nuclear_cuda],
                   lr=args.lr_adj, alphas=[args.beta])
         
         # Save original adj for loss calculation

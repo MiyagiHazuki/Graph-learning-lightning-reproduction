@@ -51,6 +51,7 @@ class Pipeline:
         # Note: to_dense_adj returns [Batch, N, N], we need [N, N] for EstimateAdj
         print("Converting graph to dense format for ProGNN...")
         adj_dense = to_dense_adj(self.dm.data.edge_index, max_num_nodes=self.dm.data.num_nodes)[0]
+        adj_dense = adj_dense.to(self.device)
         
         # Initialize ProGNN Learner strategy
         # Important: pass device to ensure parameters are created on correct device

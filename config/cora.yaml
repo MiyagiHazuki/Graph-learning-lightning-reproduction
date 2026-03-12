@@ -1,0 +1,37 @@
+# Cora Configuration for ProGNN (Simplified)
+# Optimized for ProGNN execution only
+
+# 基础运行参数
+basic:
+  seed: 10
+  debug: false
+  no_cuda: false
+
+# 数据与攻击配置
+data:
+  dataset: cora
+  attack: meta
+  ptb_rate: 0.15
+
+# 模型骨干网络 (GCN) 参数
+model:
+  hidden: 16
+  dropout: 0.5
+
+# 训练超参数
+training:
+  lr: 5e-4
+  weight_decay: 5e-4
+  epochs: 1000
+
+# ProGNN 核心算法参数
+prognn:
+  alpha: 5e-4
+  beta: 1.5
+  gamma: 1
+  lambda_: 0.001
+  phi: 0
+  inner_steps: 2
+  outer_steps: 1
+  lr_adj: 0.01
+  symmetric: false
