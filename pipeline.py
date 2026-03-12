@@ -2,10 +2,12 @@ import os
 import torch
 import numpy as np
 import scipy.sparse as sp
+from torch_geometric.utils import to_dense_adj
 from src.config_loader import Config
 from src.utils import *
 from src.data_loader import ProGNNDataModule
 from src.model_wrapper import GCNWrapper
+from src.models import ProGNNLearner
 import pytorch_lightning as pl
 
 class Pipeline:
@@ -40,9 +42,19 @@ class Pipeline:
         print("Data preparation complete. Ready for model training.")
 
         # 4. Initialize Model
-        print("Initializing GCN model...")
+        print("Initializing ProGNN model...")
         nfeat = self.dm.data.x.shape[1]
         nclass = int(self.dm.data.y.max()) + 1
+        
+        # === Prepare Graph Learner ===
+        # Convert Sparse Edge Index to Dense Adjacency Matrix
+        # Note: to_dense_adj returns [Batch, N, N], we need [N, N] for EstimateAdj
+        print("Converting graph to dense format for ProGNN...")
+        adj_dense = to_dense_adj(self.dm.data.edge_index, max_num_nodes=self.dm.data.num_nodes)[0]
+        
+        # Initialize ProGNN Learner strategy
+        # Important: pass device to ensure parameters are created on correct device
+        graph_learner = ProGNNLearner(adj_dense, self.args, self.device)
         
         # Config attributes are flattened, so we access them directly
         # model: hidden, dropout
@@ -53,7 +65,9 @@ class Pipeline:
             nclass=nclass,
             dropout=self.args.dropout,
             lr=self.args.lr,
-            weight_decay=self.args.weight_decay
+            weight_decay=self.args.weight_decay,
+            graph_learner=graph_learner,
+            args=self.args
         )
         
         # 5. Trainer Setup

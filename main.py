@@ -1,6 +1,8 @@
 import os
 import sys
 import argparse
+import warnings
+warnings.filterwarnings("ignore")
 
 # Add the project root to the path so we can import from src
 project_root = os.path.dirname(os.path.abspath(__file__))
