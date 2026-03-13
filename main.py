@@ -13,7 +13,7 @@ from pipeline import Pipeline
 
 def main():
     parser = argparse.ArgumentParser(description='ProGNN')
-    parser.add_argument('--config', type=str, default=os.path.join('config', 'citeseer.yaml'),
+    parser.add_argument('--config', type=str, default=os.path.join('config', 'cora.yaml'),
                         help='Path to the configuration file')
     args_cli = parser.parse_args()
     

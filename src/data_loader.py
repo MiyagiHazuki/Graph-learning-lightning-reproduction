@@ -6,8 +6,13 @@ from torch_geometric.loader import DataLoader
 import pytorch_lightning as pl
 import json
 import os
+import sys
 
-class ProGNNDataModule(pl.LightningDataModule):
+# Ensure root directory is in path to import message
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from message import msg
+
+class PoisonGraphDataModule(pl.LightningDataModule):
     def __init__(self, data_path, split_path=None, batch_size=1, require_lcc=True):
         """
         Args:
@@ -27,7 +32,7 @@ class ProGNNDataModule(pl.LightningDataModule):
         if self.data is not None:
             return
 
-        print(f"Loading data from {self.data_path}...")
+        msg.info(f"Loading data from {self.data_path}...")
         # 1. Load NPZ file
         raw = np.load(self.data_path, allow_pickle=True)
         
@@ -49,7 +54,7 @@ class ProGNNDataModule(pl.LightningDataModule):
 
         # Step C: Select Largest Connected Component (LCC)
         if self.require_lcc:
-            print("Selecting Largest Connected Component (LCC)...")
+            msg.info("Selecting Largest Connected Component (LCC)...")
             _, component_indices = sp.csgraph.connected_components(adj)
             component_sizes = np.bincount(component_indices)
             # Find the component with the largest size
@@ -57,7 +62,7 @@ class ProGNNDataModule(pl.LightningDataModule):
             # Get nodes belonging to the largest component
             nodes_to_keep = np.where(component_indices == largest_component_idx)[0]
             
-            print(f"Original nodes: {adj.shape[0]}, Nodes after LCC: {len(nodes_to_keep)}")
+            msg.info(f"Original nodes: {adj.shape[0]}, Nodes after LCC: {len(nodes_to_keep)}")
             
             # Filter adj, features, and labels
             adj = adj[nodes_to_keep][:, nodes_to_keep]
@@ -95,7 +100,7 @@ class ProGNNDataModule(pl.LightningDataModule):
         
         # === Handle Splits ===
         if self.split_path and os.path.exists(self.split_path):
-            print(f"Loading splits from {self.split_path}...")
+            msg.info(f"Loading splits from {self.split_path}...")
             with open(self.split_path, 'r') as f:
                 splits = json.load(f)
             
@@ -112,7 +117,7 @@ class ProGNNDataModule(pl.LightningDataModule):
             self.data.val_mask = create_mask(splits['idx_val'])
             self.data.test_mask = create_mask(splits['idx_test'])
         else:
-            print("Warning: No split path provided or file not found. Masks not set.")
+            msg.warning("Warning: No split path provided or file not found. Masks not set.")
 
     def train_dataloader(self):
         return DataLoader([self.data], batch_size=self.batch_size)
@@ -122,19 +127,3 @@ class ProGNNDataModule(pl.LightningDataModule):
 
     def test_dataloader(self):
         return DataLoader([self.data], batch_size=self.batch_size)
-
-if __name__ == "__main__":
-    # Test block
-    data_path = r"c:\Users\WU yat-fan\Desktop\ProGNN\data\cora.npz"
-    split_path = r"c:\Users\WU yat-fan\Desktop\ProGNN\splits\cora_prognn_splits.json"
-    
-    if os.path.exists(data_path) and os.path.exists(split_path):
-        dm = ProGNNDataModule(data_path, split_path, require_lcc=True)
-        dm.setup()
-        print("DataModule setup complete.")
-        print(f"Data object: {dm.data}")
-        print(f"Train mask sum: {dm.data.train_mask.sum()}")
-        print(f"Val mask sum: {dm.data.val_mask.sum()}")
-        print(f"Test mask sum: {dm.data.test_mask.sum()}")
-    else:
-        print("Paths not found, skipping test.")

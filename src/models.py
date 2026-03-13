@@ -91,7 +91,7 @@ class EstimateAdj(nn.Module):
         else:
             adj = self.estimated_adj
 
-        normalized_adj = self._normalize(adj + torch.eye(adj.shape[0]).to(self.device))
+        normalized_adj = self._normalize(adj + torch.eye(adj.shape[0]).to(adj.device))
         return normalized_adj
 
     def _normalize(self, mx):
