@@ -15,16 +15,26 @@ data:
 
 # 模型骨干网络 (GCN) 参数
 model:
+  type: elrgnn         # Options: prognn, elrgnn
   hidden: 16
   dropout: 0.5
 
 # 训练超参数
 training:
-  lr: 5e-4
+  lr: 0.01              # ELR-GNN GCN lr (Paper IV-A2: 1e-2)
   weight_decay: 5e-4
-  epochs: 150
+  epochs: 500          # ELR-GNN epochs (Paper IV-A2: 1000)
 
-# ProGNN 核心算法参数
+# ELR-GNN 核心算法参数 (Paper Section III-B & IV-A2)
+elrgnn:
+  rank: 100               # Low-rank approximation dimension (d)
+  epsilon: 0.001         # Sparsity threshold (epsilon)
+  lambda_sim: 0.1        # Similarity regularization weight
+  lambda_fr: 0.1         # Frobenius regularization weight
+  lr_adj: 0.01           # SGD learning rate for U (Paper IV-A2: SGD determined by CV)
+  symmetric: false       # Not explicitly used in ELR-GNN but kept for compatibility
+
+# ProGNN 核心算法参数 (Legacy / Comparison)
 prognn:
   alpha: 5e-4            # L1 constraint weight
   beta: 1.5              # Nuclear norm weight
