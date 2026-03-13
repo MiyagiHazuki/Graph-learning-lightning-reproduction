@@ -1,14 +1,11 @@
 import os
 import json
 import torch
-import numpy as np
-import scipy.sparse as sp
 from torch_geometric.utils import to_dense_adj
 from src.config_loader import Config
 from src.utils import *
 from src.data_loader import PoisonGraphDataModule
 from src.model_wrapper import GCNWrapper
-from src.models import ProGNNLearner
 import pytorch_lightning as pl
 from message import msg
 
@@ -54,13 +51,20 @@ class Pipeline:
         # === Prepare Graph Learner ===
         # Convert Sparse Edge Index to Dense Adjacency Matrix
         # Note: to_dense_adj returns [Batch, N, N], we need [N, N] for EstimateAdj
-        msg.info("Converting graph to dense format for ProGNN...")
+        msg.info(f"Converting graph to dense format for {self.args.type}...")
         adj_dense = to_dense_adj(self.dm.data.edge_index, max_num_nodes=self.dm.data.num_nodes)[0]
         adj_dense = adj_dense.to(self.device)
         
-        # Initialize ProGNN Learner strategy
+        # Initialize Learner strategy
         # Important: pass device to ensure parameters are created on correct device
-        graph_learner = ProGNNLearner(adj_dense, self.args, self.device)
+        if self.args.type == 'elrgnn':
+            from src.models import ELRGNNLearner
+            msg.info("Initializing ELR-GNN Learner...")
+            graph_learner = ELRGNNLearner(adj_dense, self.args, self.device)
+        else:
+            from src.models import ProGNNLearner
+            msg.info("Initializing ProGNN Learner...")
+            graph_learner = ProGNNLearner(adj_dense, self.args, self.device)
         
         # Config attributes are flattened, so we access them directly
         # model: hidden, dropout
@@ -88,38 +92,36 @@ class Pipeline:
         
         # 6. Fit and Test
         trainer.fit(model, datamodule=self.dm)
-        trainer.test(model, datamodule=self.dm)
+        
+        # Note: We skip trainer.test() here because ProGNN/ELR-GNN relies on a dynamically learned graph structure (best_graph)
+        # which is not automatically restored by Lightning's checkpoint mechanism in a new test session.
+        # Instead, we perform a comprehensive manual evaluation below using the best checkpoint and reconstructing the graph.
         
         # === 7. Comprehensive Evaluation ===
         msg.info("Starting comprehensive evaluation...")
         
-        # Ensure model is on the correct device for manual evaluation
         model.to(self.device)
         model.eval()
         
         eval_metrics = {}
         
-        # Get data to device
         x = self.dm.data.x.to(self.device)
         y = self.dm.data.y.to(self.device)
         test_mask = self.dm.data.test_mask.to(self.device)
         
-        # Determine Adjacency for GCN and Structure Eval
-        learned_adj_raw = None
-        adj_for_gcn = None
+        msg.info(f"Using best checkpoint at val_acc={float(model.best_val_acc):.6f}")
         
-        if model.graph_learner is not None:
-            model.graph_learner.eval()
-            with torch.no_grad():
-                # Raw estimated adjacency for structure comparison (before normalization)
-                # Assuming estimator.estimated_adj is the parameter of interest
-                learned_adj_raw = model.graph_learner.estimator.estimated_adj
-                # Normalized adjacency for GCN inference
-                adj_for_gcn = model.graph_learner()
-        else:
-            # Standard GCN uses the current (possibly attacked) graph in DataModule
-            adj_for_gcn = self.dm.data.edge_index.to(self.device)
-            
+        # Directly load best weights and graph structure
+        # If they are None, it indicates a training failure (e.g., accuracy <= 0 or no validation steps), 
+        # so letting it raise an AttributeError/TypeError is appropriate.
+        model.model.load_state_dict(model.best_weights)
+        msg.success("Best model weights loaded.")
+
+        adj_for_gcn = model.best_graph.to(self.device)
+        msg.success("Best graph structure loaded.")
+        
+        learned_adj_raw = adj_for_gcn.clone()
+        
         # A. Evaluate Node Classification
         with torch.no_grad():
             logits = model(x, adj_for_gcn)
@@ -127,8 +129,8 @@ class Pipeline:
             eval_metrics.update(class_metrics)
             msg.info(f"Node Classification Metrics: {json.dumps(class_metrics, indent=2)}")
 
-        # B. Evaluate Graph Structure Reconstruction (if ProGNN)
-        if learned_adj_raw is not None:
+        # B. Evaluate Graph Structure Reconstruction
+        with torch.no_grad():
             struct_metrics = evaluate_graph_structure(
                 learned_adj_raw, 
                 self.clean_edge_index.to(self.device), 
