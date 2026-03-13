@@ -103,7 +103,9 @@ class GCNWrapper(pl.LightningModule):
         if self.graph_learner is not None:
             if acc > self.best_val_acc:
                 self.best_val_acc = acc
-                self.best_graph = adj.detach()
+                # CRITICAL FIX: Use .clone() to ensure we save a COPY of the graph, 
+                # not a reference to the changing parameter memory.
+                self.best_graph = adj.detach().clone()
                 self.best_weights = deepcopy(self.model.state_dict())
         
         return loss
@@ -114,9 +116,6 @@ class GCNWrapper(pl.LightningModule):
         else:
             # Use best found graph or current graph
             adj = self.best_graph if self.best_graph is not None else self.graph_learner()
-            # If we have best weights, load them (optional, as ModelCheckpoint handles weights, but not graph)
-            # Note: PL ModelCheckpoint restores model weights, but best_graph is separate.
-            # Ideally, we should ensure consistency.
             
         out = self(batch.x, adj)
         loss = F.nll_loss(out[batch.test_mask], batch.y[batch.test_mask])
